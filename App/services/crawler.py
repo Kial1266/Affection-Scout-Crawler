@@ -1,11 +1,11 @@
 import asyncio
 import datetime
 import os
+import threading
 
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
-
 from databases.mongo_service import get_db
 
 load_dotenv()
@@ -15,9 +15,8 @@ SESSION_STRING = os.getenv("TELEGRAM_SESSION_STRING")
 
 if not API_ID or not API_HASH:
     raise ValueError(
-        "TELEGRAM_API_ID atau TELEGRAM_API_HASH tidak ditemukan di file .env!"
+        "TELEGRAM_API_ID and TELEGRAM_API_HASH must be set in the .env file!"
     )
-
 
 API_ID = int(API_ID)
 db = get_db()
@@ -28,7 +27,7 @@ TARGET_CHANNELS = [
     "@scholarship",
 ]
 client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
-
+print("Crawler service initialized...")
 
 def ekstrak_beasiswa(text):
     text_lower = text.lower()
@@ -57,7 +56,6 @@ def ekstrak_beasiswa(text):
     ]
     if any(keyword in text_lower for keyword in luar_negeri_keywords):
         lokasi = "Luar Negeri"
-
     return jenjang, lokasi
 
 async def proses_crawling():
@@ -66,7 +64,6 @@ async def proses_crawling():
     for channel in TARGET_CHANNELS:
         try:
             entity = await client.get_entity(channel)
-
             db.scholarship_channels.update_one(
                 {"channel_id": entity.id},
                 {
@@ -82,7 +79,6 @@ async def proses_crawling():
 
             messages = await client.get_messages(entity, limit=100)
             data_masuk = 0
-
             for msg in messages:
                 if msg.message and len(msg.message) > 50:
                     existing_post = db.scholarship_posts.find_one(
@@ -96,25 +92,29 @@ async def proses_crawling():
                             "raw_text": msg.message,
                         }
                         result = db.scholarship_posts.insert_one(post_doc)
+                        
+                        username_clean = channel.replace("@", "")
+                        link_sumber = f"https://t.me/{username_clean}/{msg.id}"
                         jenjang, lokasi = ekstrak_beasiswa(msg.message)
                         baris = [
                             b.strip() for b in msg.message.split("\n") if b.strip()
                         ]
                         judul_beasiswa = baris[0][:60] if baris else "Info Scholarship"
+                        
                         analytics_doc = {
                             "post_id": result.inserted_id,
                             "scholarship_title": judul_beasiswa,
                             "degree_level": jenjang,
                             "location_type": lokasi,
+                            "source_link": link_sumber, # Sekarang variabel ini sudah aman
+                            "is_notified": False
                         }
                         db.scholarship_analytics.insert_one(analytics_doc)
                         data_masuk += 1
             print(f"--> {data_masuk} Info Scholarship newly added")
         except Exception as e:
             print(f"[-] Failed to process {channel}: {e}")
-
     print("\n[V] Crawling Completed!")
-
 
 def run_crawler():
     loop = asyncio.new_event_loop()
@@ -122,7 +122,6 @@ def run_crawler():
     
     with client:
         loop.run_until_complete(proses_crawling())
-
 
 if __name__ == "__main__":
     run_crawler()
