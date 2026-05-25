@@ -1,0 +1,4 @@
+telethon
+pyTelegramBotAPI
+pymongo
+python-dotenv
