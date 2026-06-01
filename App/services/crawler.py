@@ -92,7 +92,7 @@ async def process_and_save_message(msg, channel, is_realtime=False):
             inserted_id = result.inserted_id
             
             if is_realtime:
-                print(f"[RAW 📥] Pesan baru otomatis masuk rental_posts | ID: {msg.id}")
+                print(f"[RAW] Pesan baru otomatis masuk rental_posts | ID: {msg.id}")
         else:
             inserted_id = existing_post["_id"]
 
@@ -141,7 +141,7 @@ async def process_and_save_message(msg, channel, is_realtime=False):
             }
             db.rental_analytics.insert_one(analytics_doc)
             
-            tag = "[REAL-TIME 🔔]" if is_realtime else "[HISTORICAL]"
+            tag = "[REAL-TIME]" if is_realtime else "[HISTORICAL]"
             print(f"{tag} [✓] LOLOS FILTER & MASUK ANALYTICS! | {getattr(channel, 'title', 'Unknown')} | ID: {msg.id}")
             
         return True
@@ -152,7 +152,7 @@ async def process_and_save_message(msg, channel, is_realtime=False):
 
 async def handler_pesan_baru(event):
     channel = await event.get_chat()
-    print(f"⚡ [NOTIF] Ada postingan baru masuk di Telegram dari: {getattr(channel, 'title', 'Unknown')} (ID Pesan: {event.message.id})")
+    print(f"[NOTIF] Ada postingan baru masuk di Telegram dari: {getattr(channel, 'title', 'Unknown')} (ID Pesan: {event.message.id})")
     await process_and_save_message(event.message, channel, is_realtime=True)
 
 async def main_crawler_flow():

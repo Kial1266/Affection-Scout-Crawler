@@ -2,4 +2,4 @@ telethon
 pyTelegramBotAPI
 pymongo
 python-dotenv
-freeze
+flask

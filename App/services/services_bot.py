@@ -73,12 +73,12 @@ def broadcast_notifikasi_otomatis():
                             bot.send_message(user["chat_id"], pesan_notif, parse_mode='Markdown')
                         except Exception:
                             pass 
-                    time.sleep(0.5)
+                    time.sleep(3600)
                     
         except Exception as global_err:
             print(f"[-] Broadcast loop error: {global_err}")
             
-        time.sleep(10) # Cek data baru tiap 10 detik
+        time.sleep(10) 
 
 threading.Thread(target=broadcast_notifikasi_otomatis, daemon=True).start()
 
@@ -142,7 +142,7 @@ def find_relationship(message):
             data_per_channel[channel_name].append(item)
 
     if not data_per_channel:
-        bot.reply_to(message, f"❌ Tidak ada info valid terbaru untuk type *{rentaltype}*.", parse_mode="Markdown")
+        bot.reply_to(message, f"Tidak ada info valid terbaru untuk type *{rentaltype}*.", parse_mode="Markdown")
         return
 
     balasan = f"✨ *Daftar Rental {rentaltype}:* ✨\n\n"
