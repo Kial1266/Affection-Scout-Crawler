@@ -71,8 +71,10 @@ RentRadar/
 ├── databases/
 │   └── mongo_service.py       # MongoDB connection and database services
 │
-├── crawler.py                 # Real-time scraping and filtering service
-├── bot.py                     # Telegram bot and broadcast service
+├── services/
+│    ├── crawler.py                 # Real-time scraping and filtering service
+│    └── bot.py                     # Telegram bot and broadcast service
+├──  main.py                 
 ├── .env                       # Environment variables and API credentials
 ├── requirements.txt           # Python dependencies
 └── README.md                  # Project documentation
