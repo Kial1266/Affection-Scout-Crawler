@@ -6,7 +6,6 @@ import time
 
 from dotenv import load_dotenv
 from pymongo import MongoClient
-
 from databases.mongo_service import get_db
 
 load_dotenv()
@@ -17,69 +16,78 @@ if not TOKEN:
 bot = telebot.TeleBot(TOKEN)
 db = get_db()
 
-print("Bot service initialized...")
+print("Bot service initialized (Clean Data Viewer Mode)...")
 
 def broadcast_notifikasi_otomatis():
+    try:
+        # Bersihkan backlog lama biar gak nyepam pas bot dinyalain
+        result = db.rental_analytics.update_many(
+            {"$or": [{"is_notified": False}, {"is_notified": {"$exists": False}}]},
+            {"$set": {"is_notified": True}}
+        )
+        print(f"[*] Cleared {result.modified_count} old backlog messages. Ready for live update!")
+    except Exception as e:
+        print(f"[-] Gagal membersihkan backlog: {e}")
+
     while True:
         try:
-            print("[*] Checking for new scholarships to notify...")
-            
-            beasiswa_baru = list(db.scholarship_analytics.find({
-                "$or": [
-                    {"is_notified": False},
-                    {"is_notified": {"$exists": False}}
-                ]
-                }).sort([("_id", -1)]).limit(1))
-            semua_user = list(db.bot_users.find({}))
+            pipeline = [
+                {"$match": {"is_notified": False}},
+                {
+                    "$lookup": {
+                        "from": "rental_posts",
+                        "localField": "post_id",
+                        "foreignField": "_id",
+                        "as": "post_detail"
+                    }
+                },
+                {"$unwind": "$post_detail"},
+                {"$sort": {"post_detail.timestamp": 1}} 
+            ]
+            new_extractions = list(db.rental_analytics.aggregate(pipeline))
+            all_user = list(db.bot_users.find({}))
                         
-            if beasiswa_baru and semua_user:
-                for info in beasiswa_baru:
-                    judul_asli = info.get("scholarship_title", "Info Scholarship")
-                    lokasi = info.get("location_type", "Umum")
-                    jenjang = info.get("degree_level", "Umum")
-                    link = info.get("source_link", "https://t.me")
-
-                    judul_aman = (
-                        judul_asli.replace("*", "")
-                        .replace("_", " ")
-                        .replace("[", "")
-                        .replace("]", "")
-                    )
-
-                    pesan_notif = (
-                        "*INFO BEASISWA BARU!*\n\n"
-                        f"*Scholarship:* {judul_aman}\n"
-                        f"*Degree Level:* {jenjang}\n"
-                        f"*Location:* {lokasi}\n\n"
-                        f"[Click Here to View Official Source]({link})"
-                    )
-                    
-                    for user in semua_user:
-                        try:
-                            bot.send_message(user["chat_id"], pesan_notif, parse_mode='Markdown')
-                        except Exception as e:
-                            print(f"[-] Gagal ngirim ke {user['chat_id']}: {e}")
-                    
-                    db.scholarship_analytics.update_one(
+            if new_extractions and all_user:
+                print(f"🔔[BROADCAST] Menyiarkan {len(new_extractions)} info rental terbaru live ke user!")
+                for info in new_extractions:
+                    db.rental_analytics.update_one(
                         {"_id": info["_id"]},
                         {"$set": {"is_notified": True}}
                     )
+
+                    title = info.get("Info_Title", "Rental Info")
+                    extraction = info.get("Relationship_Type", "Relationship")
+                    link = info.get("source_link", "https://t.me")
+
+                    judul_aman = title.replace("*", "").replace("_", " ").replace("[", "").replace("]", "")
+
+                    pesan_notif = (
+                        "*New! *\n\n"
+                        f"*Title:* {judul_aman}\n"
+                        f"*Type:* {extraction}\n\n"
+                        f"👉 [Klik di Sini Untuk Melihat Source]({link})"
+                    )
+                    
+                    for user in all_user:
+                        try:
+                            bot.send_message(user["chat_id"], pesan_notif, parse_mode='Markdown')
+                        except Exception:
+                            pass 
+                    time.sleep(0.5)
                     
         except Exception as global_err:
-            print(f"[-] Error pada loop broadcast: {global_err}")
+            print(f"[-] Broadcast loop error: {global_err}")
             
-        time.sleep(7200)
+        time.sleep(10) # Cek data baru tiap 10 detik
+
 threading.Thread(target=broadcast_notifikasi_otomatis, daemon=True).start()
 
 @bot.message_handler(commands=['help'])
 def send_help(message):
     teks = (
-        "Hai! I'm a scholarship finder bot:\n\n"
-        "/start - Start the bot.\n"
-        "/find [jenjang] - Find scholarships by degree level (example: `/find S1`).\n\n"
-        "Usage:\n"
-        "`/find S1` - Show scholarships for S1 level.\n\n"
-        "_Data provided by our MongoDB crawler._"
+        "💕 *Rental Finder Bot Help* \n\n"
+        "/start - Daftar/Mulai menerima notif otomatis\n"
+        "/find [Type] - Cari data terbaru (Contoh: `/find Boyfriend` atau `/find Girlfriend`)"
     )
     bot.reply_to(message, teks, parse_mode="Markdown")
 
@@ -90,58 +98,67 @@ def send_welcome(message):
         {"$set": {"username": message.from_user.username, "join_at": datetime.datetime.now()}},
         upsert=True
     )
-    
-    teks = "Halo! You've been added to the user list. You will get notifications for new scholarships automatically! 🎓"
-    bot.reply_to(message, teks)
+    bot.reply_to(message, "Halo! Kamu berhasil terdaftar. Kamu akan otomatis dapat notifikasi begitu ada rental baru dirilis! 🔥")
 
 @bot.message_handler(commands=["find"])
-def cari_beasiswa(message):
+def find_relationship(message):
     teks_pesan = message.text.split()
-
     if len(teks_pesan) < 2:
-        bot.reply_to(
-            message,
-            "Fill the degree level!\nExample: `/find S1`",
-            parse_mode="Markdown",
-        )
+        bot.reply_to(message, "Format salah! Gunakan contoh: `/find Boyfriend` atau `/find Girlfriend`", parse_mode="Markdown")
         return
 
-    jenjang_target = teks_pesan[1].upper()
-    hasil_cari = db.scholarship_analytics.aggregate(
-        [
-            {"$match": {"degree_level": jenjang_target}},
-            {"$sort": {"_id": -1}},
-            {"$limit": 10},
-        ]
-    )
+    rentaltype = teks_pesan[1].capitalize() 
+    
+    # Ambil data terbersih dan terbaru berdasarkan waktu kirim asli di Telegram
+    pipeline = [
+        {"$match": {"Relationship_Type": rentaltype}},
+        {
+            "$lookup": {
+                "from": "rental_posts",
+                "localField": "post_id",
+                "foreignField": "_id",
+                "as": "post_detail"
+            }
+        },
+        {"$unwind": "$post_detail"},
+        {"$sort": {"post_detail.timestamp": -1}},  
+        {"$limit": 100} 
+    ]
+    
+    result = list(db.rental_analytics.aggregate(pipeline))
 
-    hasil_list = list(hasil_cari)
-    if not hasil_list:
-        bot.reply_to(
-            message,
-            f"There's no scholarship info for *{jenjang_target}*. Try another degree level!",
-            parse_mode="Markdown",
-        )
-        return
-
-    balasan = f"*Top 10 scholarships for {jenjang_target}:*\n\n"
-    for index, item in enumerate(hasil_list, 1):
-        judul_asli = item.get("scholarship_title", "Beasiswa")
+    data_per_channel = {}
+    for item in result:
         link_sumber = item.get('source_link', 'https://t.me')
-        judul_aman = (
-            judul_asli.replace("*", "")
-            .replace("_", " ")
-            .replace("[", "")
-            .replace("]", "")
-        )
-        balasan += f"*{index}. {judul_aman}*\n"
-        balasan += f"Link: [Sumber Resmi]({link_sumber})\n\n"
+        try:
+            channel_name = link_sumber.split('/')[3]
+        except IndexError:
+            channel_name = "Unknown Channel"
+            
+        if channel_name not in data_per_channel:
+            data_per_channel[channel_name] = []
+            
+        if len(data_per_channel[channel_name]) < 5:
+            data_per_channel[channel_name].append(item)
+
+    if not data_per_channel:
+        bot.reply_to(message, f"❌ Tidak ada info valid terbaru untuk type *{rentaltype}*.", parse_mode="Markdown")
+        return
+
+    balasan = f"✨ *Daftar Rental {rentaltype}:* ✨\n\n"
+    for channel, items in data_per_channel.items():
+        balasan += f"📢 *Channel: @{channel}*\n"
+        for index, item in enumerate(items, 1):
+            judul_asli = item.get("Info_Title", "Relationship Info")
+            link_sumber = item.get('source_link', 'https://t.me')
+            judul_aman = judul_asli.replace("*", "").replace("_", " ").replace("[", "").replace("]", "")
+            balasan += f"  {index}. [{judul_aman}]({link_sumber})\n"
+        balasan += "\n" 
         
-    balasan += "\n_Data provided by our MongoDB crawler._"
-    bot.reply_to(message, balasan, parse_mode="Markdown")
+    bot.reply_to(message, balasan, parse_mode="Markdown", disable_web_page_preview=True)
 
 def run_bot():
-    print("Starting the bot...")
+    print("Starting Telegram Bot API...")
     bot.infinity_polling()
 
 if __name__ == "__main__":

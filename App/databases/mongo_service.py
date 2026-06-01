@@ -10,7 +10,7 @@ if not MONGO_URI:
     raise ValueError("MONGO_URI tidak ditemukan di file .env!")
 
 client = MongoClient(MONGO_URI)
-db = client["scholarship_bot"]
+db = client["rental_bot"]
 
 def get_db():
     return db
