@@ -159,7 +159,7 @@ def find_relationship(message):
 
 def run_bot():
     print("Starting Telegram Bot API...")
-    bot.infinity_polling()
+    bot.infinity_polling(skip_pending=True)
 
 if __name__ == "__main__":
     run_bot()
