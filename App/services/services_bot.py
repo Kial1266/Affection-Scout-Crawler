@@ -73,7 +73,7 @@ def broadcast_notifikasi_otomatis():
                             bot.send_message(user["chat_id"], pesan_notif, parse_mode='Markdown')
                         except Exception:
                             pass 
-                    time.sleep(3600)
+                    time.sleep(1800)
                     
         except Exception as global_err:
             print(f"[-] Broadcast loop error: {global_err}")

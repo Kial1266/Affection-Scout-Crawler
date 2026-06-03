@@ -96,9 +96,6 @@ async def process_and_save_message(msg, channel, is_realtime=False):
         else:
             inserted_id = existing_post["_id"]
 
-        # ==========================================
-        # 3. PROSES FILTERING (Hanya untuk Analytics/Bot)
-        # ==========================================
         text_lower = msg.text.lower()
         
         # Saringan A: Abaikan teks yang terlalu pendek (di bawah 30 karakter biasanya cuma spam/link pendek)
