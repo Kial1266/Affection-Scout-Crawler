@@ -3,3 +3,4 @@ pyTelegramBotAPI
 pymongo
 python-dotenv
 flask
+pytz

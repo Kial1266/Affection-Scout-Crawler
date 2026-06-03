@@ -3,6 +3,7 @@ import os
 import threading
 import telebot
 import time
+import pytz
 
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -19,18 +20,22 @@ db = get_db()
 print("Bot service initialized (Clean Data Viewer Mode)...")
 
 def broadcast_notifikasi_otomatis():
+    tz = pytz.timezone('Asia/Jakarta')
+
     try:
-        # Bersihkan backlog lama biar gak nyepam pas bot dinyalain
         result = db.rental_analytics.update_many(
             {"$or": [{"is_notified": False}, {"is_notified": {"$exists": False}}]},
             {"$set": {"is_notified": True}}
         )
-        print(f"[*] Cleared {result.modified_count} old backlog messages. Ready for live update!")
+        print(f"[*] Cleared {result.modified_count} old backlog messages on boot.")
     except Exception as e:
         print(f"[-] Gagal membersihkan backlog: {e}")
 
     while True:
         try:
+            sekarang = datetime.datetime.now(tz)
+            is_quiet_hours = sekarang.hour >= 22 or sekarang.hour < 7
+
             pipeline = [
                 {"$match": {"is_notified": False}},
                 {
@@ -45,10 +50,25 @@ def broadcast_notifikasi_otomatis():
                 {"$sort": {"post_detail.timestamp": 1}} 
             ]
             new_extractions = list(db.rental_analytics.aggregate(pipeline))
+
+            if not new_extractions:
+                time.sleep(10)
+                continue
+
+            if is_quiet_hours:
+                for info in new_extractions:
+                    db.rental_analytics.update_one(
+                        {"_id": info["_id"]},
+                        {"$set": {"is_notified": True}} 
+                    )
+                print(f"[{sekarang.strftime('%H:%M:%S')}] Night Mode: {len(new_extractions)} log dilewati & dibersihkan.")
+                time.sleep(60) # Cek lagi tiap 1 menit selama jam malam
+                continue
+
             all_user = list(db.bot_users.find({}))
-                        
-            if new_extractions and all_user:
-                print(f"🔔[BROADCAST] Menyiarkan {len(new_extractions)} info rental terbaru live ke user!")
+            if all_user:
+                print(f"[BROADCAST] Menyiarkan {len(new_extractions)} info rental live ke user!")
+                
                 for info in new_extractions:
                     db.rental_analytics.update_one(
                         {"_id": info["_id"]},
@@ -73,13 +93,14 @@ def broadcast_notifikasi_otomatis():
                             bot.send_message(user["chat_id"], pesan_notif, parse_mode='Markdown')
                         except Exception:
                             pass 
-                    time.sleep(120)
                     
+                    time.sleep(120)
+
         except Exception as global_err:
             print(f"[-] Broadcast loop error: {global_err}")
-            
-        time.sleep(10) 
+            time.sleep(10)
 
+# Jalankan thread
 threading.Thread(target=broadcast_notifikasi_otomatis, daemon=True).start()
 
 @bot.message_handler(commands=['help'])
