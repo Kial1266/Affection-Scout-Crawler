@@ -27,8 +27,8 @@ TARGET_CHANNELS = [
 
 # --- LAYER 1: WHITELIST ---
 RAW_ALLOWED_WORDS = [
-    "#openrent", "#rentopen", "bxb", "gxg", "gxb", "mxm", "wxw", 
-    "boyfriend", "girlfriend", "rent", "rental", "ready", "#aos", 
+    "bxb", "gxg", "gxb", "mxm", "wxw", 
+    "boyfriend", "girlfriend", "rent", "#aos", 
     "#findrent", "#afeksi", "#love", "male", "female", "boy", "boyfriend",
     "woman", "man", "girl", "girls", "bf", "gf"
 ]
@@ -36,13 +36,15 @@ ALLOWED_WORDS = [word.lower() for word in RAW_ALLOWED_WORDS]
 
 # --- LAYER 2: BLACKLIST ---
 RAW_EXCLUDED_WORDS = [
-    "business", "trial", "tes", "promo",
-    "#post", "#explore", "#ads", "#follow", "#loveinfo", 
-    "#findhouse", "#storyrent", "#keporent", "#spillrent", 
-    "#rg", "#share", "#sharerent", "#qt", "#pt", "#askrent", 
-    "#mootsrent", "#rentask", "#rentmoots", "#helprent", 
-    "#rfpedia", "#woa", "#agencyship", "#seputarental", 
-    "#rbefriend"
+    "business", "trial", "tes", "promo","#post",
+    "#explore", "#ads", "#follow", "#loveinfo", 
+    "#findhouse", "#storyrent", "#keporent", 
+    "#spillrent", "#rg", "#share", "#sharerent",
+    "#qt", "#pt", "#askrent", "#mootsrent", 
+    "#rentask", "#rentmoots", "#helprent", 
+    "#rfpedia", "#woa", "#agencyship",
+    "#seputarental", "#rbefriend", "confelove", 
+    "confelov", "ketentuan", "menfess", "send"
 ]
 EXCLUDED_WORDS = [word.lower() for word in RAW_EXCLUDED_WORDS]
 
