@@ -53,7 +53,7 @@ def data_crawler(text):
     text_lower = text.lower()
 
     # Typo diperbaiki jadi "nsfw", dan ditambah "18+"
-    is_nsfw = any(x in text_lower for x in ["nsfw", "18+", "dirty talk", "sex", "sexting", "smut", "hypersex"])
+    is_nsfw = any(x in text_lower for x in ["nsfw", "dirty talk", "sex", "sexting", "smut", "hypersex"])
     is_bf = any(x in text_lower for x in ["bxb", "boyfriend", "boy", "male", "boys", "mxm", "bf"])
     is_gf = any(x in text_lower for x in ["gxg", "girlfriend", "girls", "woman", "wxw", "gxb", "gf"])
     
@@ -187,8 +187,8 @@ async def main_crawler_flow():
         try:
             print(f"[*] Scanning data lama di {entity.title}...")
             valid_count = 0
-            async for msg in client.iter_messages(entity, limit=500):
-                if valid_count >= 100:
+            async for msg in client.iter_messages(entity, limit=10000):
+                if valid_count >= 1000:
                     break
                 is_valid = await process_and_save_message(msg, entity, is_realtime=False)
                 if is_valid:
