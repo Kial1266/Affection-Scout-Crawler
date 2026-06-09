@@ -25,7 +25,7 @@ TARGET_CHANNELS = [
     "@rentalentfess"
 ]
 
-# --- LAYER 1: WHITELIST ---
+
 RAW_ALLOWED_WORDS = [
     "bxb", "gxg", "gxb", "mxm", "wxw", 
     "boyfriend", "girlfriend", "rent", "#aos", 
@@ -34,7 +34,7 @@ RAW_ALLOWED_WORDS = [
 ]
 ALLOWED_WORDS = [word.lower() for word in RAW_ALLOWED_WORDS]
 
-# --- LAYER 2: BLACKLIST ---
+
 RAW_EXCLUDED_WORDS = [
     "business", "trial", "tes", "promo","#post",
     "#explore", "#ads", "#follow", "#loveinfo", 
