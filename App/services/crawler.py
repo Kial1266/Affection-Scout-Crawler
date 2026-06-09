@@ -30,7 +30,7 @@ RAW_ALLOWED_WORDS = [
     "bxb", "gxg", "gxb", "mxm", "wxw", 
     "boyfriend", "girlfriend", "rent", "#aos", 
     "#findrent", "#afeksi", "#love", "male", "female", "boy", "boyfriend",
-    "woman", "man", "girl", "girls", "bf", "gf"
+    "woman", "man", "girl", "girls", "bf", "gf", "cw", "nsfw", "lewd", "dirty talk", "otp", "flirty", "tease", "sex", "sexting"
 ]
 ALLOWED_WORDS = [word.lower() for word in RAW_ALLOWED_WORDS]
 
@@ -58,6 +58,8 @@ def data_crawler(text):
         extraction = "Boyfriend"
     elif any(x in text_lower for x in ["gxg", "girlfriend", "girls", "woman", "wxw", "gxb", "gf"]):
         extraction = "Girlfriend"
+    elif any(x in text_lower for x in ["nsfw", "cw", "dirty talk", "flirty", "tease", "sex", "sexting"]):
+        extraction = "NSFW"     
     return extraction
 
 async def process_and_save_message(msg, channel, is_realtime=False):
