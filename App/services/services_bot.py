@@ -19,89 +19,89 @@ db = get_db()
 
 print("Bot service initialized (Clean Data Viewer Mode)...")
 
-def broadcast_notifikasi_otomatis():
-    tz = pytz.timezone('Asia/Jakarta')
+# def broadcast_notifikasi_otomatis():
+#     tz = pytz.timezone('Asia/Jakarta')
 
-    try:
-        result = db.rental_analytics.update_many(
-            {"$or": [{"is_notified": False}, {"is_notified": {"$exists": False}}]},
-            {"$set": {"is_notified": True}}
-        )
-        print(f"[*] Cleared {result.modified_count} old backlog messages on boot.")
-    except Exception as e:
-        print(f"[-] Gagal membersihkan backlog: {e}")
+#     try:
+#         result = db.rental_analytics.update_many(
+#             {"$or": [{"is_notified": False}, {"is_notified": {"$exists": False}}]},
+#             {"$set": {"is_notified": True}}
+#         )
+#         print(f"[*] Cleared {result.modified_count} old backlog messages on boot.")
+#     except Exception as e:
+#         print(f"[-] Gagal membersihkan backlog: {e}")
 
-    while True:
-        try:
-            sekarang = datetime.datetime.now(tz)
-            is_quiet_hours = sekarang.hour >= 22 or sekarang.hour < 7
+#     while True:
+#         try:
+#             sekarang = datetime.datetime.now(tz)
+#             is_quiet_hours = sekarang.hour >= 22 or sekarang.hour < 7
 
-            pipeline = [
-                {"$match": {"is_notified": False}},
-                {
-                    "$lookup": {
-                        "from": "rental_posts",
-                        "localField": "post_id",
-                        "foreignField": "_id",
-                        "as": "post_detail"
-                    }
-                },
-                {"$unwind": "$post_detail"},
-                {"$sort": {"post_detail.timestamp": 1}} 
-            ]
-            new_extractions = list(db.rental_analytics.aggregate(pipeline))
+#             pipeline = [
+#                 {"$match": {"is_notified": False}},
+#                 {
+#                     "$lookup": {
+#                         "from": "rental_posts",
+#                         "localField": "post_id",
+#                         "foreignField": "_id",
+#                         "as": "post_detail"
+#                     }
+#                 },
+#                 {"$unwind": "$post_detail"},
+#                 {"$sort": {"post_detail.timestamp": 1}} 
+#             ]
+#             new_extractions = list(db.rental_analytics.aggregate(pipeline))
 
-            if not new_extractions:
-                time.sleep(10)
-                continue
+#             if not new_extractions:
+#                 time.sleep(10)
+#                 continue
 
-            if is_quiet_hours:
-                for info in new_extractions:
-                    db.rental_analytics.update_one(
-                        {"_id": info["_id"]},
-                        {"$set": {"is_notified": True}} 
-                    )
-                print(f"[{sekarang.strftime('%H:%M:%S')}] Night Mode: {len(new_extractions)} log dilewati & dibersihkan.")
-                time.sleep(60) # Cek lagi tiap 1 menit selama jam malam
-                continue
+#             if is_quiet_hours:
+#                 for info in new_extractions:
+#                     db.rental_analytics.update_one(
+#                         {"_id": info["_id"]},
+#                         {"$set": {"is_notified": True}} 
+#                     )
+#                 print(f"[{sekarang.strftime('%H:%M:%S')}] Night Mode: {len(new_extractions)} log dilewati & dibersihkan.")
+#                 time.sleep(60) # Cek lagi tiap 1 menit selama jam malam
+#                 continue
 
-            all_user = list(db.bot_users.find({}))
-            if all_user:
-                print(f"[BROADCAST] Menyiarkan {len(new_extractions)} info rental live ke user!")
+#             all_user = list(db.bot_users.find({}))
+#             if all_user:
+#                 print(f"[BROADCAST] Menyiarkan {len(new_extractions)} info rental live ke user!")
                 
-                for info in new_extractions:
-                    db.rental_analytics.update_one(
-                        {"_id": info["_id"]},
-                        {"$set": {"is_notified": True}}
-                    )
+#                 for info in new_extractions:
+#                     db.rental_analytics.update_one(
+#                         {"_id": info["_id"]},
+#                         {"$set": {"is_notified": True}}
+#                     )
 
-                    title = info.get("Info_Title", "Rental Info")
-                    extraction = info.get("Relationship_Type", "Relationship")
-                    link = info.get("source_link", "https://t.me")
+#                     title = info.get("Info_Title", "Rental Info")
+#                     extraction = info.get("Relationship_Type", "Relationship")
+#                     link = info.get("source_link", "https://t.me")
 
-                    judul_aman = title.replace("*", "").replace("_", " ").replace("[", "").replace("]", "")
+#                     judul_aman = title.replace("*", "").replace("_", " ").replace("[", "").replace("]", "")
 
-                    pesan_notif = (
-                        "*New! *\n\n"
-                        f"*Title:* {judul_aman}\n"
-                        f"*Type:* {extraction}\n\n"
-                        f"👉 [Klik di Sini Untuk Melihat Source]({link})"
-                    )
+#                     pesan_notif = (
+#                         "*New! *\n\n"
+#                         f"*Title:* {judul_aman}\n"
+#                         f"*Type:* {extraction}\n\n"
+#                         f"👉 [Klik di Sini Untuk Melihat Source]({link})"
+#                     )
                     
-                    for user in all_user:
-                        try:
-                            bot.send_message(user["chat_id"], pesan_notif, parse_mode='Markdown')
-                        except Exception:
-                            pass 
+#                     for user in all_user:
+#                         try:
+#                             bot.send_message(user["chat_id"], pesan_notif, parse_mode='Markdown')
+#                         except Exception:
+#                             pass 
                     
-                    time.sleep(120)
+#                     time.sleep(120)
 
-        except Exception as global_err:
-            print(f"[-] Broadcast loop error: {global_err}")
-            time.sleep(10)
+#         except Exception as global_err:
+#             print(f"[-] Broadcast loop error: {global_err}")
+#             time.sleep(10)
 
-# Jalankan thread
-threading.Thread(target=broadcast_notifikasi_otomatis, daemon=True).start()
+# # Jalankan thread
+# threading.Thread(target=broadcast_notifikasi_otomatis, daemon=True).start()
 
 @bot.message_handler(commands=['help'])
 def send_help(message):
