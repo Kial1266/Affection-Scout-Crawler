@@ -25,18 +25,16 @@ TARGET_CHANNELS = [
     "@rentalentfess"
 ]
 
-
 RAW_ALLOWED_WORDS = [
     "bxb", "gxg", "gxb", "mxm", "wxw", 
     "boyfriend", "girlfriend", "rent", "#aos", 
     "#findrent", "#afeksi", "#love", "male", "female", "boy", "boyfriend",
-    "woman", "man", "girl", "girls", "bf", "gf", "cw", "nsfw", "lewd", "dirty talk", "otp", "flirty", "tease", "sex", "sexting"
+    "woman", "man", "girl", "girls", "bf", "gf", "cw", "nsfw", "18+", "lewd", "dirty talk", "otp", "flirty", "tease", "sex", "sexting"
 ]
 ALLOWED_WORDS = [word.lower() for word in RAW_ALLOWED_WORDS]
 
-
 RAW_EXCLUDED_WORDS = [
-    "business", "trial", "tes", "promo","#post",
+    "business", "trial", "tes", "promo", "#post",
     "#explore", "#ads", "#follow", "#loveinfo", 
     "#findhouse", "#storyrent", "#keporent", 
     "#spillrent", "#rg", "#share", "#sharerent",
@@ -44,31 +42,40 @@ RAW_EXCLUDED_WORDS = [
     "#rentask", "#rentmoots", "#helprent", 
     "#rfpedia", "#woa", "#agencyship",
     "#seputarental", "#rbefriend", "confelove", 
-    "confelov", "ketentuan", "menfess", "send", "@"
+    "confelov", "ketentuan", "menfess", "@", "send"
 ]
 EXCLUDED_WORDS = [word.lower() for word in RAW_EXCLUDED_WORDS]
 
 client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
-print("Crawler service initialized (Save All Raw Data + Filtered Analytics)...")
+print("Crawler service initialized (Strict 4-Category No-Regex Mode)...")
 
 def data_crawler(text):
     text_lower = text.lower()
-    extraction = "Relationship"
-    if any(x in text_lower for x in ["bxb", "boyfriend", "boy", "male", "boys", "mxm", "bf"]):
-        extraction = "Boyfriend"
-    elif any(x in text_lower for x in ["gxg", "girlfriend", "girls", "woman", "wxw", "gxb", "gf"]):
-        extraction = "Girlfriend"
-    elif any(x in text_lower for x in ["nsfw", "cw", "dirty talk", "flirty", "tease", "sex", "sexting"]):
-        extraction = "NSFW"     
-    return extraction
+
+    # Typo diperbaiki jadi "nsfw", dan ditambah "18+"
+    is_nsfw = any(x in text_lower for x in ["nsfw", "18+", "dirty talk", "sex", "sexting", "smut", "hypersex"])
+    is_bf = any(x in text_lower for x in ["bxb", "boyfriend", "boy", "male", "boys", "mxm", "bf"])
+    is_gf = any(x in text_lower for x in ["gxg", "girlfriend", "girls", "woman", "wxw", "gxb", "gf"])
+    
+    # Prioritas 1: NSFW (Konten dewasa selalu jadi prioritas tertinggi)
+    if is_nsfw:
+        return "NSFW"
+    # Prioritas 2: Mixed
+    if is_bf and is_gf:
+        return "Mixed"
+    # Prioritas 3: Single Gender
+    if is_bf:
+        return "Boyfriend"
+    if is_gf:
+        return "Girlfriend"
+        
+    return None
 
 async def process_and_save_message(msg, channel, is_realtime=False):
-    # Validasi dasar: Pastikan ada teks di dalam pesan
     if not msg.text:
         return False
 
     try:
-        # 1. Selalu perbarui info channel tempat pesan berasal
         db.rental_channels.update_one(
             {"channel_id": channel.id},
             {
@@ -81,7 +88,6 @@ async def process_and_save_message(msg, channel, is_realtime=False):
             upsert=True,
         )
 
-        # 2. AKSI LANGSUNG: Simpan semua pesan baru ke tabel rental_posts tanpa filter!
         existing_post = db.rental_posts.find_one({"channel_id": channel.id, "message_id": msg.id})
         inserted_id = None
         
@@ -102,26 +108,32 @@ async def process_and_save_message(msg, channel, is_realtime=False):
 
         text_lower = msg.text.lower()
         
-        # Saringan A: Abaikan teks yang terlalu pendek (di bawah 30 karakter biasanya cuma spam/link pendek)
+        # Saringan A: Abaikan teks yang terlalu pendek
         if len(msg.text) <= 30:
             if is_realtime:
-                print(f"   └─ [X] ANALYTICS SKIPPED: Teks terlalu pendek (ID: {msg.id})")
+                print(f"    └─ [X] ANALYTICS SKIPPED: Teks terlalu pendek (ID: {msg.id})")
             return True
 
         # Saringan B: Cek Blacklist
         for word in EXCLUDED_WORDS:
             if word in text_lower:
                 if is_realtime:
-                    print(f"   └─ [X] ANALYTICS SKIPPED: Mengandung kata blacklist '{word}' (ID: {msg.id})")
+                    print(f"    └─ [X] ANALYTICS SKIPPED: Mengandung kata blacklist '{word}' (ID: {msg.id})")
                 return True
 
         # Saringan C: Cek Whitelist
         if not any(word in text_lower for word in ALLOWED_WORDS):
             if is_realtime:
-                print(f"   └─ [X] ANALYTICS SKIPPED: Tidak lolos kata kunci Whitelist (ID: {msg.id})")
+                print(f"    └─ [X] ANALYTICS SKIPPED: Tidak lolos kata kunci Whitelist (ID: {msg.id})")
             return True
 
-        # 4. JIKA LOLOS SEMUA SARINGAN: Masukkan ke rental_analytics agar bisa dibaca Bot
+        extraction = data_crawler(msg.text) 
+        if not extraction:
+            if is_realtime:
+                print(f"    └─ [X] ANALYTICS SKIPPED: Postingan tidak masuk 4 kategori utama (ID: {msg.id})")
+            return True
+
+        # 4. JIKA LOLOS SEMUA SARINGAN & KATEGORI VALID: Masukkan ke rental_analytics
         existing_analytics = db.rental_analytics.find_one({"post_id": inserted_id})
         
         if not existing_analytics:
@@ -129,7 +141,6 @@ async def process_and_save_message(msg, channel, is_realtime=False):
             username_clean = username_clean if username_clean else str(channel.id)
             link_sumber = f"https://t.me/{username_clean}/{msg.id}"
             
-            extraction = data_crawler(msg.text) 
             baris = [b.strip() for b in msg.text.split("\n") if b.strip()]
             Title = baris[0][:60] if baris else "Info"
             
@@ -143,7 +154,7 @@ async def process_and_save_message(msg, channel, is_realtime=False):
             db.rental_analytics.insert_one(analytics_doc)
             
             tag = "[REAL-TIME]" if is_realtime else "[HISTORICAL]"
-            print(f"{tag} [✓] LOLOS FILTER & MASUK ANALYTICS! | {getattr(channel, 'title', 'Unknown')} | ID: {msg.id}")
+            print(f"{tag} [✓] ({extraction}) ENTERED ANALYTICS! | {getattr(channel, 'title', 'Unknown')} | ID: {msg.id}")
             
         return True
 
@@ -188,7 +199,6 @@ async def main_crawler_flow():
 
     client.add_event_handler(handler_pesan_baru, events.NewMessage(chats=resolved_entities))
     print("\n[V] LIVE CRAWLER REAL-TIME AKTIF!")
-    print("[*] Semua pesan baru otomatis masuk DB. Pesan valid otomatis dioper ke Bot. Pantau terminal...\n")
 
 def run_crawler():
     print("Membuka koneksi Telethon Client...")
