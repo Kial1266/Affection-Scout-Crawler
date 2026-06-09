@@ -44,7 +44,7 @@ RAW_EXCLUDED_WORDS = [
     "#rentask", "#rentmoots", "#helprent", 
     "#rfpedia", "#woa", "#agencyship",
     "#seputarental", "#rbefriend", "confelove", 
-    "confelov", "ketentuan", "menfess", "send"
+    "confelov", "ketentuan", "menfess", "send", "@"
 ]
 EXCLUDED_WORDS = [word.lower() for word in RAW_EXCLUDED_WORDS]
 
