@@ -108,7 +108,7 @@ def send_help(message):
     teks = (
         "💕 *Rental Finder Bot Help* \n\n"
         "/start - Daftar/Mulai menerima notif otomatis\n"
-        "/find [Type] - Cari data terbaru (Contoh: `/find Boyfriend` atau `/find Girlfriend`)"
+        "/find [Type] - Cari data terbaru (Contoh: `/find Boyfriend`, '/find nsfw' atau `/find Girlfriend`)"
     )
     bot.reply_to(message, teks, parse_mode="Markdown")
 
@@ -128,11 +128,18 @@ def find_relationship(message):
         bot.reply_to(message, "Format salah! Gunakan contoh: `/find Boyfriend` atau `/find Girlfriend`", parse_mode="Markdown")
         return
 
-    rentaltype = teks_pesan[1].capitalize() 
+    input_user = teks_pesan[1] 
+    
+    display_type = "NSFW" if input_user.lower() == "nsfw" else input_user.capitalize()
     
     # Ambil data terbersih dan terbaru berdasarkan waktu kirim asli di Telegram
     pipeline = [
-        {"$match": {"Relationship_Type": rentaltype}},
+        # [PERBAIKAN 2]: Gunakan $regex dengan $options: "i" agar pencarian mengabaikan huruf besar/kecil
+        {
+            "$match": {
+                "Relationship_Type": { "$regex": f"^{input_user}$", "$options": "i" }
+            }
+        },
         {
             "$lookup": {
                 "from": "rental_posts",
@@ -163,10 +170,10 @@ def find_relationship(message):
             data_per_channel[channel_name].append(item)
 
     if not data_per_channel:
-        bot.reply_to(message, f"Tidak ada info valid terbaru untuk type *{rentaltype}*.", parse_mode="Markdown")
+        bot.reply_to(message, f"Tidak ada info valid terbaru untuk type *{display_type}*.", parse_mode="Markdown")
         return
 
-    balasan = f"✨ *Daftar Rental {rentaltype}:* ✨\n\n"
+    balasan = f"✨ *Daftar Rental {display_type}:* ✨\n\n"
     for channel, items in data_per_channel.items():
         balasan += f"📢 *Channel: @{channel}*\n"
         for index, item in enumerate(items, 1):
@@ -177,6 +184,26 @@ def find_relationship(message):
         balasan += "\n" 
         
     bot.reply_to(message, balasan, parse_mode="Markdown", disable_web_page_preview=True)
+
+
+@bot.message_handler(commands=['stats'])
+def cek_stats(message):
+    pipeline = [
+        {"$group": {"_id": "$Relationship_Type", "total": {"$sum": 1}}}
+    ]
+    hasil = list(db.rental_analytics.aggregate(pipeline))
+    
+    if not hasil:
+        bot.reply_to(message, "Database rental_analytics masih kosong melompong!")
+        return
+
+    teks = "📊 *Statistik Kategori di Database saat ini:*\n\n"
+    for item in hasil:
+        kategori = item['_id'] if item['_id'] else "Tanpa Kategori"
+        jumlah = item['total']
+        teks += f"▪️ *{kategori}*: {jumlah} data\n"
+        
+    bot.reply_to(message, teks, parse_mode="Markdown")
 
 def run_bot():
     print("Starting Telegram Bot API...")
