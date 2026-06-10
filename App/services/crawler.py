@@ -187,8 +187,8 @@ async def main_crawler_flow():
         try:
             print(f"[*] Scanning data lama di {entity.title}...")
             valid_count = 0
-            async for msg in client.iter_messages(entity, limit=10000):
-                if valid_count >= 1000:
+            async for msg in client.iter_messages(entity, limit=500):
+                if valid_count >= 100:
                     break
                 is_valid = await process_and_save_message(msg, entity, is_realtime=False)
                 if is_valid:
