@@ -60,15 +60,14 @@ def data_crawler(text):
     # Prioritas 1: NSFW (Konten dewasa selalu jadi prioritas tertinggi)
     if is_nsfw:
         return "NSFW"
-    # Prioritas 2: Mixed
-    if is_bf and is_gf:
-        return "Mixed"
     # Prioritas 3: Single Gender
     if is_bf:
         return "Boyfriend"
     if is_gf:
         return "Girlfriend"
-        
+        # Prioritas 2: Mixed
+    if is_bf and is_gf:
+        return "Mixed"    
     return None
 
 async def process_and_save_message(msg, channel, is_realtime=False):
