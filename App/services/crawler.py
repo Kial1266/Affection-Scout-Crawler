@@ -54,8 +54,8 @@ def data_crawler(text):
 
     # Typo diperbaiki jadi "nsfw", dan ditambah "18+"
     is_nsfw = any(x in text_lower for x in ["nsfw", "dirty talk", "sex", "sexting", "smut", "hypersex"])
-    is_bf = any(x in text_lower for x in ["bxb", "boyfriend", "boy", "male", "boys", "mxm", "bf"])
-    is_gf = any(x in text_lower for x in ["gxg", "girlfriend", "girls", "woman", "wxw", "gxb", "gf"])
+    is_bf = any(x in text_lower for x in ["bxb", "boyfriend", "boy", "male", "boys", "mxm", "bf", "bfr", "ganteng", "abang"])
+    is_gf = any(x in text_lower for x in ["gxg", "girlfriend", "girls", "woman", "wxw", "gxb", "gf", "kakak", "cantik", "gfr", "girl"])
     
     # Prioritas 1: NSFW (Konten dewasa selalu jadi prioritas tertinggi)
     if is_nsfw:
