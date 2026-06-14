@@ -53,21 +53,14 @@ def data_crawler(text):
     text_lower = text.lower()
 
     # Typo diperbaiki jadi "nsfw", dan ditambah "18+"
-    is_nsfw = any(x in text_lower for x in ["nsfw", "dirty talk", "sex", "sexting", "smut", "hypersex", "degrading", "vanila", "maso"])
     is_bf = any(x in text_lower for x in ["bxb", "boyfriend", "boy", "male", "boys", "mxm", "bf", "bfr", "ganteng", "abang", "pria", "laki-laki", "mlm"])
     is_gf = any(x in text_lower for x in ["gxg", "girlfriend", "girls", "woman", "wxw", "gxb", "gf", "kakak", "cantik", "gfr", "girl", "lady", "sister", "perempuan", "cewe", "cewek", "wlw"])
-    
-    # Prioritas 1: NSFW (Konten dewasa selalu jadi prioritas tertinggi)
-    if is_nsfw:
-        return "NSFW"
-    # Prioritas 3: Single Gender
+
     if is_bf:
         return "Boyfriend"
     if is_gf:
         return "Girlfriend"
-        # Prioritas 2: Mixed
-    if is_bf and is_gf:
-        return "Mixed"    
+        # Prioritas 2: Mixed   
     return None
 
 async def process_and_save_message(msg, channel, is_realtime=False):
@@ -186,8 +179,8 @@ async def main_crawler_flow():
         try:
             print(f"[*] Scanning data lama di {entity.title}...")
             valid_count = 0
-            async for msg in client.iter_messages(entity, limit=500):
-                if valid_count >= 100:
+            async for msg in client.iter_messages(entity, limit=1000):
+                if valid_count >= 1000:
                     break
                 is_valid = await process_and_save_message(msg, entity, is_realtime=False)
                 if is_valid:
